@@ -67,14 +67,18 @@ else:
 
     # Obtener carpetas del usuario
     user_folders = list(user_conversations.keys())
+    
+    # Construir lista de opciones con carpetas arriba y opciones abajo
+    folder_options = user_folders + ["    ⬇⬇ Gestionar ⬇⬇", "Nueva Carpeta", "Renombrar Carpeta"]
 
-    # Selección de carpeta (por defecto, la última usada o "General")
+    # Selección de carpeta (por defecto, la última usada o "General") 
     selected_folder = st.sidebar.selectbox(
         "Selecciona una carpeta",
-        ["Nueva Carpeta"] + user_folders,
-        index=user_folders.index(st.session_state.current_folder) + 1  # +1 porque "Nueva Carpeta" está en la posición 0
+        folder_options,
+        index=folder_options.index(st.session_state.current_folder) if st.session_state.current_folder in user_folders else 0
     )
 
+    # Crear una nueva carpeta
     if selected_folder == "Nueva Carpeta":
         new_folder = st.sidebar.text_input("Nombre de la nueva carpeta")
         if st.sidebar.button("Crear carpeta") and new_folder.strip():
@@ -83,35 +87,101 @@ else:
                 st.session_state.current_folder = new_folder
                 st.session_state.current_conversation = "Conversación 1"
                 st.sidebar.success(f"Carpeta '{new_folder}' creada")
+                update_conversations()  # Guardar los cambios
                 st.rerun()
             else:
                 st.sidebar.error("La carpeta ya existe")
-    else:
+
+    # Renombrar una carpeta existente
+    elif selected_folder == "Renombrar Carpeta":
+        folder_to_rename = st.sidebar.selectbox("Selecciona carpeta a renombrar", user_folders)
+        new_folder_name = st.sidebar.text_input(f"Nuevo nombre para '{folder_to_rename}'")
+
+        if st.sidebar.button("Guardar nuevo nombre"):
+            if new_folder_name.strip() and new_folder_name != folder_to_rename:
+                if new_folder_name not in user_conversations:
+                    # Mover contenido de la carpeta antigua a la nueva
+                    user_conversations[new_folder_name] = user_conversations.pop(folder_to_rename)
+
+                    # Si la carpeta renombrada era "General", crear una nueva carpeta "General" vacía
+                    if folder_to_rename == "General":
+                        user_conversations["General"] = {"Conversación 1": []}  # Mantener estructura de inicio
+                        st.session_state.general_renamed = True  # Guardar aviso en session_state
+
+                    # Actualizar la carpeta actual en la sesión
+                    st.session_state.current_folder = new_folder_name
+                    st.sidebar.success(f"Carpeta renombrada a '{new_folder_name}'")
+
+                    update_conversations()  # Guarda los cambios
+                    st.rerun()
+                else:
+                    st.sidebar.error("Ese nombre ya existe, elige otro")
+            else:
+                st.sidebar.error("Debes ingresar un nombre válido")
+                
+    # Si el usuario selecciona una carpeta válida, actualizar la carpeta actual
+    elif selected_folder != "    ⬇⬇ Gestionar ⬇⬇":
         st.session_state.current_folder = selected_folder
 
-    # Obtener conversaciones dentro de la carpeta seleccionada
+
+    # Mostrar aviso después del rerun si se renombró "General"
+    if "general_renamed" in st.session_state and st.session_state.general_renamed:
+        st.sidebar.warning("La carpeta 'General' ha sido renombrada, pero se ha creado una nueva vacía.")
+        st.session_state.general_renamed = False  # Resetear el mensaje
+
+
+    # Obtener la lista de conversaciones en la carpeta actual
     current_folder_conversations = user_conversations[st.session_state.current_folder]
     conversation_list = list(current_folder_conversations.keys())
 
-    # Selección de conversación (por defecto, la última usada o "Conversación 1")
+    # Construir la lista de opciones con conversaciones arriba y opciones de gestión abajo
+    conversation_options = conversation_list + ["    ⬇⬇ Gestionar ⬇⬇", "Nueva Conversación", "Renombrar Conversación"]
+
+    # Selección de conversación o acción especial
     selected_conversation = st.sidebar.selectbox(
         "Selecciona una conversación",
-        ["Nueva Conversación"] + conversation_list,
-        index=conversation_list.index(st.session_state.current_conversation) + 1 if st.session_state.current_conversation in conversation_list else 1
+        conversation_options,
+        index=conversation_options.index(st.session_state.current_conversation) if st.session_state.current_conversation in conversation_list else 0
     )
 
+    # Manejar la opción seleccionada
     if selected_conversation == "Nueva Conversación":
         new_conversation_name = st.sidebar.text_input("Nombre de la nueva conversación")
-        if st.sidebar.button("Crear conversación") and new_conversation_name.strip():
+        if st.sidebar.button("Crear Conversación") and new_conversation_name.strip():
             if new_conversation_name not in current_folder_conversations:
                 current_folder_conversations[new_conversation_name] = []
                 st.session_state.current_conversation = new_conversation_name
                 st.sidebar.success(f"Conversación '{new_conversation_name}' creada")
+                update_conversations()  # Guarda los cambios
                 st.rerun()
             else:
                 st.sidebar.error("Ese nombre ya existe, elige otro")
-    else:
+
+    elif selected_conversation == "Renombrar Conversación":
+        conversation_to_rename = st.sidebar.selectbox("Selecciona conversación a renombrar", conversation_list, key="rename_convo_select")
+        new_conversation_name = st.sidebar.text_input(f"Nuevo nombre para '{conversation_to_rename}'")
+
+        if st.sidebar.button("Renombrar Conversación"):
+            if new_conversation_name.strip() and new_conversation_name != conversation_to_rename:
+                if new_conversation_name not in current_folder_conversations:
+                    # Mover el contenido de la conversación antigua a la nueva
+                    current_folder_conversations[new_conversation_name] = current_folder_conversations.pop(conversation_to_rename)
+
+                    # Actualizar la conversación actual en la sesión
+                    st.session_state.current_conversation = new_conversation_name
+                    st.sidebar.success(f"Conversación renombrada a '{new_conversation_name}'")
+
+                    update_conversations()  # Guarda los cambios
+                    st.rerun()
+                else:
+                    st.sidebar.error("Ese nombre ya existe, elige otro")
+            else:
+                st.sidebar.error("Debes ingresar un nombre válido")
+
+    # Si el usuario selecciona una conversación válida, actualizar la conversación actual
+    elif selected_conversation != "    ⬇⬇ Gestionar ⬇⬇":
         st.session_state.current_conversation = selected_conversation
+
 
     # Botón de cerrar sesión
     st.sidebar.markdown("---")
