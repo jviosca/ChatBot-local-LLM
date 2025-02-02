@@ -121,10 +121,13 @@ def deepseek_response_streaming(user_message):
     return display_text
 
 
-def send_message():
+def send_message(stream = False):
     user_input = st.session_state.user_input.strip()
     if user_input:
-        bot_response = deepseek_response(user_input)
+        if stream == False:
+            bot_response = deepseek_response(user_input)
+        elif stream == True:
+            bot_response = deepseek_response_streaming(user_input)
 
         # Obtener el usuario, carpeta y conversación actual
         username = st.session_state.username
