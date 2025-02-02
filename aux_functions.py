@@ -121,21 +121,25 @@ def deepseek_response_streaming(user_message):
     return display_text
 
 
-# Función de callback para manejar el envío del mensaje
 def send_message():
     user_input = st.session_state.user_input.strip()
     if user_input:
-        bot_response = deepseek_response(user_input)  # Procesar respuesta
-        # Guardar la conversación en el historial
-        st.session_state.conversations[st.session_state.username][st.session_state.current_folder].append({
+        bot_response = deepseek_response(user_input)
+
+        # Obtener el usuario, carpeta y conversación actual
+        username = st.session_state.username
+        folder = st.session_state.current_folder
+        conversation = st.session_state.current_conversation
+
+        # Guardar el mensaje en la conversación seleccionada
+        st.session_state.conversations[username][folder][conversation].append({
             "user": user_input,
             "bot": bot_response
         })
-        # Limpiar el campo de entrada antes de recargar
+
+        # Limpiar la entrada
         st.session_state.user_input = ""
-        #st.rerun()
-    else:
-        st.warning("Por favor ingresa un mensaje")
+
 
 
 def deepseek_response(user_message):
