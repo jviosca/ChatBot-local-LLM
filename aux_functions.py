@@ -121,29 +121,6 @@ def deepseek_response_streaming(user_message):
     return display_text
 
 
-def send_message_old(stream = False):
-    user_input = st.session_state.user_input.strip()
-    if user_input:
-        if stream == False:
-            bot_response = deepseek_response(user_input)
-        elif stream == True:
-            bot_response = deepseek_response_streaming(user_input)
-
-        # Obtener el usuario, carpeta y conversación actual
-        username = st.session_state.username
-        folder = st.session_state.current_folder
-        conversation = st.session_state.current_conversation
-
-        # Guardar el mensaje en la conversación seleccionada
-        st.session_state.conversations[username][folder][conversation].append({
-            "user": user_input,
-            "bot": bot_response
-        })
-
-        # Limpiar la entrada
-        st.session_state.user_input = ""
-
-
 def send_message(stream=False):
     """
     Envía el mensaje del usuario al chatbot y almacena la respuesta en el historial de la conversación.
@@ -166,46 +143,11 @@ def send_message(stream=False):
             "bot": bot_response
         })
 
+        # 🔹 Guardar historial comprimido y actualizar la interfaz
+        update_conversations()
+
         # Limpiar la entrada
         st.session_state.user_input = ""
-
-
-def deepseek_response_old(user_message):
-    """
-    Llama a la API de DeepSeek sin streaming, obteniendo la respuesta completa en una sola solicitud.
-    
-    Parámetros:
-    - user_message (str): Mensaje del usuario que será enviado al modelo.
-
-    Retorna:
-    - str: Respuesta generada por el modelo después de limpiar cualquier contenido no deseado.
-    """
-    system_message = "Eres un asistente útil. Tus respuestas deben ser en español."
-    prompt = f"System: {system_message}\nUser: {user_message}\nAssistant:"
-
-    payload = {
-        "model": "deepseek-r1:1.5b",  # Ajusta el modelo si es necesario
-        "prompt": prompt,
-        "stream": False  # Desactiva el streaming para recibir la respuesta completa
-    }
-
-    url = "http://localhost:11434/api/generate"
-
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
-
-        # Extraer y limpiar la respuesta
-        bot_response = data.get("response", "").strip()
-
-        # Filtrar cualquier contenido entre <think>...</think>
-        bot_response = re.sub(r'<think>.*?</think>', '', bot_response, flags=re.DOTALL).strip()
-
-        return bot_response
-
-    except requests.exceptions.RequestException as e:
-        return f"Error en la solicitud: {str(e)}"
 
 
 def deepseek_response(user_message):
@@ -280,4 +222,31 @@ def get_user_folders(username):
     Retorna la lista de carpetas existentes para el usuario.
     """
     return list(st.session_state.conversations[username].keys())
+
+
+def save_conversations():
+    """
+    Guarda las conversaciones en formato JSON comprimido en session_state.
+    """
+    st.session_state.conversations_json = json.dumps(
+        st.session_state.conversations, separators=(',', ':')  # Sin espacios innecesarios
+    )
+
+def load_conversations():
+    """
+    Carga las conversaciones desde JSON comprimido.
+    """
+    if "conversations_json" in st.session_state and st.session_state.conversations_json:
+        try:
+            st.session_state.conversations = json.loads(st.session_state.conversations_json)
+        except json.JSONDecodeError:
+            st.session_state.conversations = {}  # En caso de error, inicializa vacío
+
+def update_conversations():
+    """
+    Marca el estado para una actualización en la siguiente iteración del script.
+    """
+    save_conversations()
+    st.session_state.should_rerun = True  # 🔹 Indicamos que se debe hacer un `rerun`
+
 

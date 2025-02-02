@@ -6,11 +6,21 @@ from aux_functions import (
     login_user,
     create_folder,
     get_user_folders,
-    send_message
+    send_message,
+    load_conversations,
+    update_conversations
 )
 
 # Inicializar variables de sesión
 init_session_state()
+
+# Cargar conversaciones desde JSON comprimido
+load_conversations() 
+
+# Si se ha marcado `should_rerun`, hacer `st.rerun()` fuera de los callbacks
+if "should_rerun" in st.session_state and st.session_state.should_rerun:
+    st.session_state.should_rerun = False  # 🔹 Restablecemos el estado
+    st.rerun()  # 🔹 Ahora el rerun se ejecuta en un lugar válido
 
 # Asegurar que las claves esenciales existen en session_state
 if "username" not in st.session_state:
